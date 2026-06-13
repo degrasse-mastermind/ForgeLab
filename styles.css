@@ -166,3 +166,9 @@ hr{ border:0; border-top:1px solid var(--border); margin:14px 0; }
 .badgeDay{ color:#0b1020; background:var(--accent); border-radius:999px; padding:4px 8px; font-size:.78rem; font-weight:900; }
 .statusText{ color:var(--muted); font-size:.85rem; margin-top:8px; }
 .footerSpace{ height:12px; }
+/* Narrow date inputs so they don't span the full card width */
+input[type="date"]{
+  width: 10.5rem;
+  max-width: 100%;
+  display: inline-block;
+}
