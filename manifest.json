@@ -1,6 +1,6 @@
 {
-  "name": "BLS Cut Tracker",
-  "short_name": "BLS Cut",
+  "name": "DeltaFit Tracker",
+  "short_name": "DeltaFit",
   "description": "Private 12-week BLS-style cut workout, body, cardio, and progress tracker.",
   "start_url": "./index.html",
   "display": "standalone",
