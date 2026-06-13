@@ -1,0 +1,9 @@
+# Local OS/editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Backups/exports you may create locally
+*.bak
+*.tmp

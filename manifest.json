@@ -1,0 +1,22 @@
+{
+  "name": "BLS Cut Tracker",
+  "short_name": "BLS Cut",
+  "description": "Private 12-week BLS-style cut workout, body, cardio, and progress tracker.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0b1020",
+  "theme_color": "#111827",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

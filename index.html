@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="BLS Cut">
+  <meta name="theme-color" content="#111827">
+  <title>BLS Cut Tracker</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="appShell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Private iPhone Tracker</p>
+        <h1>BLS Cut Tracker</h1>
+      </div>
+      <button id="installHelpBtn" class="ghostBtn" type="button">Install</button>
+    </header>
+
+    <main id="app" class="app"></main>
+
+    <nav class="bottomNav" aria-label="Primary navigation">
+      <button data-view="today" class="navItem active" type="button"><span>Today</span></button>
+      <button data-view="plan" class="navItem" type="button"><span>Plan</span></button>
+      <button data-view="body" class="navItem" type="button"><span>Body</span></button>
+      <button data-view="cardio" class="navItem" type="button"><span>Cardio</span></button>
+      <button data-view="progress" class="navItem" type="button"><span>Progress</span></button>
+      <button data-view="settings" class="navItem" type="button"><span>Settings</span></button>
+    </nav>
+  </div>
+
+  <div id="modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modalCard">
+      <button id="closeModal" class="closeBtn" type="button" aria-label="Close">×</button>
+      <h2 id="modalTitle">Add to iPhone Home Screen</h2>
+      <p>Open this page in Safari, tap the Share icon, then choose <strong>Add to Home Screen</strong>. The app works offline after it has been opened once.</p>
+      <p class="tiny">Your workout data is stored privately in this browser using local storage. Use Export in Settings to back it up.</p>
+    </div>
+  </div>
+
+  <script src="app-data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
