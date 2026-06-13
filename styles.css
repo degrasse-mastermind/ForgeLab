@@ -172,3 +172,16 @@ input[type="date"]{
   max-width: 100%;
   display: inline-block;
 }
+/* Smaller default RPE placeholder/text in workout set rows */
+.rpeCell input{
+  font-size: .82rem;
+}
+
+.rpeCell input::placeholder{
+  font-size: .72rem;
+  opacity: .7;
+}
+
+.rpeCell label{
+  font-size: .68rem;
+}
