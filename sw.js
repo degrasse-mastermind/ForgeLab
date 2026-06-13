@@ -1,5 +1,5 @@
 
-const CACHE_NAME = "bls-cut-tracker-v1";
+const CACHE_NAME = "bls-cut-tracker-v2";
 const ASSETS = [
   "./",
   "./index.html",
