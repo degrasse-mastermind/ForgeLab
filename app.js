@@ -249,7 +249,6 @@
             <p class="eyebrow">Today</p>
             <h2 class="heroTitle">Week ${week} | Day ${day.day}</h2>
             <p class="heroSub">
-              <span class="heroDayName">${escapeHtml(day.name)}</span>
               <span class="heroPhase"><strong>${escapeHtml(phase.name)}:</strong> ${escapeHtml(phase.focus)}</span>
             </p>
           </div>
@@ -314,14 +313,17 @@
                 <div class="checkCell"><input data-field="done" type="checkbox" ${s.done ? "checked" : ""} title="Done"></div>
               </div>
             `).join("")}
-            <div class="grid stack">
-              <div><label>Notes</label><input data-field="notes" type="text" value="${escapeHtml(log.notes)}" placeholder="Form, pain, energy..."></div>
-            </div>
             <div class="metricGrid two">
               <div class="metricTile"><strong>${Math.round(volume).toLocaleString()}</strong><span>volume ${state.settings.weightUnit}</span></div>
               <div class="metricTile"><strong>${e1rm ? Math.round(e1rm) : "-"}</strong><span>estimated 1RM</span></div>
             </div>
             <div class="advice">${escapeHtml(progressionAdvice(log, ex, week))}</div>
+            <details class="exerciseNotes">
+              <summary aria-label="Notes for ${escapeHtml(ex.name)}">Notes</summary>
+              <div class="exerciseNotesField">
+                <input data-field="notes" type="text" value="${escapeHtml(log.notes)}" placeholder="Form, pain, energy..." aria-label="${escapeHtml(ex.name)} notes">
+              </div>
+            </details>
           </section>
         `;
       });
@@ -715,7 +717,7 @@
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js?v=5").catch(err => console.warn("Service worker unavailable", err));
+      navigator.serviceWorker.register("./sw.js?v=6").catch(err => console.warn("Service worker unavailable", err));
     });
   }
 

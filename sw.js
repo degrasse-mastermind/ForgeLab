@@ -1,14 +1,14 @@
 
-const CACHE_NAME = "forgelab-v5";
+const CACHE_NAME = "forgelab-v6";
 const ASSETS = [
   "./",
   "./index.html",
-  "./styles.css?v=5",
-  "./app-data.js?v=5",
-  "./app.js?v=5",
-  "./manifest.json?v=5",
+  "./styles.css?v=6",
+  "./app-data.js?v=6",
+  "./app.js?v=6",
+  "./manifest.json?v=6",
   "./assets/forge-lab-logo.png",
-  "./icons/icon-192.png?v=5",
+  "./icons/icon-192.png?v=6",
   "./icons/icon-512.png"
 ];
 

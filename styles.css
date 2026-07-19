@@ -232,7 +232,7 @@ p{ line-height:1.52; }
 .heroSub span{ display:block; }
 
 .heroPhase{
-  margin-top:.18rem;
+  margin-top:0;
   color:var(--muted);
 }
 
@@ -716,6 +716,26 @@ summary{
   font-weight:850;
   cursor:pointer;
 }
+
+.exerciseNotes{
+  margin:12px 0 0;
+  padding:0;
+  overflow:hidden;
+}
+
+.exerciseNotes summary{
+  padding:11px 12px;
+  color:var(--soft);
+  font-size:.76rem;
+  letter-spacing:.07em;
+  text-transform:uppercase;
+}
+
+.exerciseNotes[open] summary{
+  border-bottom:1px solid var(--border);
+}
+
+.exerciseNotesField{ padding:12px; }
 
 .phaseList{ padding-left:18px; }
 .phaseList li{ margin:8px 0; }
