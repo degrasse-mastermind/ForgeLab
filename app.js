@@ -115,7 +115,6 @@
       state.workoutLogs[key] = {
         date, dayNum, exerciseName: ex.name,
         sets: Array.from({length:setCount}, () => ({weight:"", reps:"", rpe:"", done:false})),
-        kneePain: "",
         notes: ""
       };
       saveState();
@@ -314,7 +313,6 @@
               </div>
             `).join("")}
             <div class="grid stack">
-              <div><label>Knee pain 0-10</label><input data-field="kneePain" type="number" min="0" max="10" step="1" value="${escapeHtml(log.kneePain)}" placeholder="0"></div>
               <div><label>Notes</label><input data-field="notes" type="text" value="${escapeHtml(log.notes)}" placeholder="Form, pain, energy..."></div>
             </div>
             <div class="metricGrid two">
@@ -373,12 +371,6 @@
     } else {
       log[field] = e.target.value;
     }
-    const knee = Number(log.kneePain);
-    if (field === "kneePain" && knee > 3) {
-      e.target.style.borderColor = "rgba(239,145,135,.9)";
-    } else if (field === "kneePain") {
-      e.target.style.borderColor = "";
-    }
     saveState();
   }
 
@@ -427,10 +419,11 @@
     app.innerHTML = `
       <section class="card">
         <p class="eyebrow">Body Composition</p>
-        <h2>Weight, Waist, Calories, Protein</h2>
-        <div class="grid3">
+        <h2>Weight, Waist, Knee, Calories</h2>
+        <div class="grid">
           <div class="subcard"><div class="metricLabel">Latest Weight</div><div class="bigMetric">${latest?.weight ? latest.weight + " lb" : "-"}</div></div>
           <div class="subcard"><div class="metricLabel">Change</div><div class="bigMetric">${latest && first ? (lost>0?"+":"") + lost.toFixed(1) + " lb" : "-"}</div></div>
+          <div class="subcard"><div class="metricLabel">Latest Knee</div><div class="bigMetric">${latest?.kneePain ? latest.kneePain + "/10" : "-"}</div></div>
           <div class="subcard"><div class="metricLabel">Protein Goal</div><div class="bigMetric">${state.settings.proteinGoal}g</div></div>
         </div>
       </section>
@@ -440,6 +433,7 @@
           <div><label>Date</label><input id="bodyDate" type="date" value="${fmtDate(new Date())}"></div>
           <div><label>Body Weight lb</label><input id="bodyWeight" type="number" inputmode="decimal" step="0.1" placeholder="220.0"></div>
           <div><label>Waist inches</label><input id="bodyWaist" type="number" inputmode="decimal" step="0.1" placeholder="Optional"></div>
+          <div><label>Knee pain 0-10</label><input id="bodyKnee" type="number" inputmode="numeric" min="0" max="10" step="1" placeholder="0"></div>
           <div><label>Calories</label><input id="bodyCalories" type="number" inputmode="numeric" step="1" placeholder="Optional"></div>
           <div><label>Protein grams</label><input id="bodyProtein" type="number" inputmode="numeric" step="1" placeholder="${state.settings.proteinGoal}"></div>
           <div><label>Sleep hours</label><input id="bodySleep" type="number" inputmode="decimal" step="0.1" placeholder="Optional"></div>
@@ -449,7 +443,7 @@
       </section>
       <section class="card">
         <h2>History</h2>
-        ${rows.length ? `<div class="tableWrap"><table><thead><tr><th>Date</th><th>Weight</th><th>Waist</th><th>Calories</th><th>Protein</th><th>Sleep</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r.date}</td><td>${r.weight||""}</td><td>${r.waist||""}</td><td>${r.calories||""}</td><td>${r.protein||""}</td><td>${r.sleep||""}</td></tr>`).join("")}</tbody></table></div>` : `<p class="emptyState">No body logs yet. Add a morning weigh-in to start the trend.</p>`}
+        ${rows.length ? `<div class="tableWrap"><table><thead><tr><th>Date</th><th>Weight</th><th>Waist</th><th>Knee</th><th>Calories</th><th>Protein</th><th>Sleep</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r.date}</td><td>${r.weight||""}</td><td>${r.waist||""}</td><td>${r.kneePain||""}</td><td>${r.calories||""}</td><td>${r.protein||""}</td><td>${r.sleep||""}</td></tr>`).join("")}</tbody></table></div>` : `<p class="emptyState">No body logs yet. Add a morning weigh-in and knee check to start the trend.</p>`}
       </section>
     `;
     document.getElementById("saveBody").addEventListener("click", () => {
@@ -457,6 +451,7 @@
         date: document.getElementById("bodyDate").value,
         weight: document.getElementById("bodyWeight").value,
         waist: document.getElementById("bodyWaist").value,
+        kneePain: document.getElementById("bodyKnee").value,
         calories: document.getElementById("bodyCalories").value,
         protein: document.getElementById("bodyProtein").value,
         sleep: document.getElementById("bodySleep").value,
@@ -492,14 +487,13 @@
           <div><label>Minutes</label><input id="cardioMinutes" type="number" inputmode="numeric" placeholder="30"></div>
           <div><label>RPE</label><input id="cardioRPE" type="number" inputmode="decimal" min="1" max="10" step="0.5" placeholder="5"></div>
           <div><label>Steps</label><input id="cardioSteps" type="number" inputmode="numeric" placeholder="${state.settings.stepsGoal}"></div>
-          <div><label>Knee Pain 0-10</label><input id="cardioKnee" type="number" min="0" max="10" step="1" placeholder="0"></div>
         </div>
-        <div class="stack"><label>Notes</label><textarea id="cardioNotes" rows="2" placeholder="Pace, incline, machine, knee response..."></textarea></div>
+        <div class="stack"><label>Notes</label><textarea id="cardioNotes" rows="2" placeholder="Pace, incline, machine, recovery..."></textarea></div>
         <button id="saveCardio" class="primaryBtn full formActions" type="button">Save Cardio Log</button>
       </section>
       <section class="card">
         <h2>History</h2>
-        ${rows.length ? `<div class="tableWrap"><table><thead><tr><th>Date</th><th>Type</th><th>Min</th><th>RPE</th><th>Steps</th><th>Knee</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r.date}</td><td>${escapeHtml(r.type)}</td><td>${r.minutes||""}</td><td>${r.rpe||""}</td><td>${r.steps||""}</td><td>${r.kneePain||""}</td></tr>`).join("")}</tbody></table></div>` : `<p class="emptyState">No cardio logs yet. Record steps or an easy session to build the weekly picture.</p>`}
+        ${rows.length ? `<div class="tableWrap"><table><thead><tr><th>Date</th><th>Type</th><th>Min</th><th>RPE</th><th>Steps</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r.date}</td><td>${escapeHtml(r.type)}</td><td>${r.minutes||""}</td><td>${r.rpe||""}</td><td>${r.steps||""}</td></tr>`).join("")}</tbody></table></div>` : `<p class="emptyState">No cardio logs yet. Record steps or an easy session to build the weekly picture.</p>`}
       </section>
     `;
     document.getElementById("saveCardio").addEventListener("click", () => {
@@ -509,7 +503,6 @@
         minutes: document.getElementById("cardioMinutes").value,
         rpe: document.getElementById("cardioRPE").value,
         steps: document.getElementById("cardioSteps").value,
-        kneePain: document.getElementById("cardioKnee").value,
         notes: document.getElementById("cardioNotes").value
       });
       saveState();
@@ -682,13 +675,13 @@
   }
 
   function downloadWorkoutCsv(){
-    const rows = [["date","day","exercise","set","weight","reps","rpe","done","volume","est_1rm","knee_pain","notes"]];
+    const rows = [["date","day","exercise","set","weight","reps","rpe","done","volume","est_1rm","notes"]];
     Object.values(state.workoutLogs).forEach(log => {
       (log.sets || []).forEach((s,i) => {
         const w = Number(s.weight), r = Number(s.reps);
         const vol = (isFinite(w)&&isFinite(r)) ? w*r : "";
         const e1 = (isFinite(w)&&isFinite(r)&&w>0&&r>0) ? Math.round(w*(1+r/30)) : "";
-        rows.push([log.date, log.dayNum, log.exerciseName, i+1, s.weight, s.reps, s.rpe, s.done, vol, e1, log.kneePain, log.notes]);
+        rows.push([log.date, log.dayNum, log.exerciseName, i+1, s.weight, s.reps, s.rpe, s.done, vol, e1, log.notes]);
       });
     });
     const csv = rows.map(row => row.map(v => `"${String(v ?? "").replace(/"/g,'""')}"`).join(",")).join("\n");

@@ -1,5 +1,5 @@
 
-const CACHE_NAME = "forgelab-v1";
+const CACHE_NAME = "forgelab-v2";
 const ASSETS = [
   "./",
   "./index.html",
