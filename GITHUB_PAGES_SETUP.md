@@ -1,6 +1,6 @@
-# ForgeLab - GitHub Pages setup
+# ForgeLab - GitHub Pages hosting
 
-This repository can be served as a static GitHub Pages site from the root of `main`.
+ForgeLab is served only through GitHub Pages from the root of `main`.
 
 ## GitHub Pages
 
@@ -13,7 +13,15 @@ This repository can be served as a static GitHub Pages site from the root of `ma
 
 ## Custom domain
 
-Use `forgelab.mybranford.com` as the custom domain if you host through GitHub Pages. If ForgeLab is hosted through Sites instead, use the DNS records returned by the Sites custom-domain setup.
+The custom domain is `forgelab.mybranford.com`.
+
+Add this DNS record at the DNS provider for `mybranford.com`:
+
+| Type | Name | Value |
+| --- | --- | --- |
+| CNAME | `forgelab` | `degrasse-mastermind.github.io` |
+
+Do not use `custom-domains.chatgpt.site` or the old Sites validation TXT records.
 
 ## Notes
 

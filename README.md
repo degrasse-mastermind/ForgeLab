@@ -33,10 +33,16 @@ http://localhost:8080
 
 ## How to use on iPhone
 
-1. Open the hosted URL in Safari on your iPhone.
+1. Open `https://forgelab.mybranford.com` in Safari on your iPhone.
 2. Tap Share.
 3. Tap Add to Home Screen.
 4. Open it from the new Home Screen icon.
+
+## Hosting
+
+ForgeLab is published from the `main` branch with GitHub Pages and uses
+`forgelab.mybranford.com` as its custom domain. See `GITHUB_PAGES_SETUP.md`
+for the repository and DNS settings.
 
 ## Privacy
 
