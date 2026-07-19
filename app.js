@@ -247,11 +247,25 @@
         <div class="heroTop">
           <div>
             <p class="eyebrow">Today</p>
-            <h2 class="heroTitle">Week ${week}, day ${day.day}</h2>
-            <p class="heroSub">${escapeHtml(day.name)}. ${escapeHtml(phase.name)}: ${escapeHtml(phase.focus)}</p>
+            <h2 class="heroTitle">Week ${week} | Day ${day.day}</h2>
+            <p class="heroSub">
+              <span class="heroDayName">${escapeHtml(day.name)}</span>
+              <span class="heroPhase"><strong>${escapeHtml(phase.name)}:</strong> ${escapeHtml(phase.focus)}</span>
+            </p>
           </div>
           <span class="programMark">W${week}</span>
         </div>
+        <div class="heroWorkoutSummary">
+          <div>
+            <h3>${escapeHtml(day.name)}</h3>
+            <p>${escapeHtml(day.type)}. ${escapeHtml(day.cardio || "")}</p>
+          </div>
+          <div class="summaryTags">
+            <span class="pill ${week===9?'warn':'good'}">${week===9?'Deload':'Training'}</span>
+            <span class="badgeDay">D${day.day}</span>
+          </div>
+        </div>
+        ${day.day===3 ? `<div class="warnBox"><strong>Knee check:</strong> pain should stay at 0-3/10. Use pain-free depth and swap movements if needed.</div>` : ""}
         <div class="heroMetrics">
           <div class="metricTile"><strong>${progress.pct}%</strong><span>${progressLabel}</span></div>
           <div class="metricTile"><strong>${day.exercises.length || "0"}</strong><span>${day.type.toLowerCase()} blocks</span></div>
@@ -261,18 +275,6 @@
           <div><label>Date</label><input id="todayDate" type="date" value="${ui.todayDate}"></div>
           <div><label>Workout Day</label><select id="todayDay">${PLAN.days.map(d=>`<option value="${d.day}" ${d.day===day.day?'selected':''}>Day ${d.day}: ${escapeHtml(d.name)}</option>`).join("")}</select></div>
         </div>
-      </section>
-
-      <section class="card">
-        <div class="between">
-          <div>
-            <h2>${escapeHtml(day.name)}</h2>
-            <p class="sectionLead">${escapeHtml(day.type)}. ${escapeHtml(day.cardio || "")}</p>
-          </div>
-          <span class="pill ${week===9?'warn':'good'}">${week===9?'Deload':'Training'}</span>
-          <span class="badgeDay">D${day.day}</span>
-        </div>
-        ${day.day===3 ? `<div class="warnBox"><strong>Knee check:</strong> pain should stay at 0-3/10. Use pain-free depth and swap movements if needed.</div>` : ""}
       </section>
     `;
 

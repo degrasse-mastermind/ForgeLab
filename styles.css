@@ -211,18 +211,77 @@ p{ line-height:1.52; }
   gap:14px;
 }
 
+.heroTop > div{ min-width:0; }
+
 .heroTitle{
   margin:0;
-  max-width:16ch;
-  font-size:clamp(2rem, 8vw, 4rem);
-  line-height:.94;
+  font-size:clamp(1.6rem, 5.2vw, 2.9rem);
+  line-height:1;
   letter-spacing:0;
+  white-space:nowrap;
 }
 
 .heroSub{
   max-width:62ch;
-  margin:.65rem 0 0;
+  margin:.5rem 0 0;
   color:var(--soft);
+  font-size:.82rem;
+  line-height:1.4;
+}
+
+.heroSub span{ display:block; }
+
+.heroPhase{
+  margin-top:.18rem;
+  color:var(--muted);
+}
+
+.heroPhase strong{
+  color:var(--soft);
+  font-weight:800;
+}
+
+.heroWorkoutSummary{
+  position:relative;
+  z-index:1;
+  display:grid;
+  grid-template-columns:minmax(0, 1fr) auto;
+  align-items:start;
+  gap:12px;
+  margin-top:14px;
+  padding-top:12px;
+  border-top:1px solid rgba(245,240,232,.12);
+}
+
+.heroWorkoutSummary h3{
+  margin:0 0 4px;
+  font-size:.94rem;
+}
+
+.heroWorkoutSummary p{
+  margin:0;
+  color:var(--soft);
+  font-size:.78rem;
+  line-height:1.45;
+}
+
+.summaryTags{
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+
+.heroWorkoutSummary .pill,
+.heroWorkoutSummary .badgeDay{
+  padding:4px 7px;
+  font-size:.7rem;
+}
+
+.heroCard > .warnBox{
+  position:relative;
+  z-index:1;
+  margin-top:10px;
+  font-size:.8rem;
 }
 
 .programMark{
@@ -692,7 +751,6 @@ hr{ border:0; border-top:1px solid var(--border); margin:14px 0; }
 @media (max-width:520px){
   .app{ padding-inline:12px; }
   .heroCard{ padding:16px; }
-  .heroTitle{ max-width:11ch; }
   .brandLogo{
     width:min(190px, 48vw);
     height:40px;
@@ -702,6 +760,11 @@ hr{ border:0; border-top:1px solid var(--border); margin:14px 0; }
     height:54px;
     border-radius:14px;
   }
+  .heroWorkoutSummary{
+    grid-template-columns:1fr;
+    gap:8px;
+  }
+  .summaryTags{ justify-content:flex-start; }
   .setGrid{
     grid-template-columns: 38px 1fr 1fr;
   }
