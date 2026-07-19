@@ -1,5 +1,5 @@
 
-const CACHE_NAME = "bls-cut-tracker-v4";
+const CACHE_NAME = "forgelab-v1";
 const ASSETS = [
   "./",
   "./index.html",

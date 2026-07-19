@@ -1,4 +1,4 @@
-# BLS Cut Tracker — Private iPhone PWA
+# ForgeLab - Private iPhone PWA
 
 This is a self-contained progressive web app for your 12-week BLS-style cut program.
 

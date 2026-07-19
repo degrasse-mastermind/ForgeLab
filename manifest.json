@@ -1,11 +1,11 @@
 {
-  "name": "DeltaFit Tracker",
-  "short_name": "DeltaFit",
+  "name": "ForgeLab",
+  "short_name": "ForgeLab",
   "description": "Private 12-week BLS-style cut workout, body, cardio, and progress tracker.",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#0b1020",
-  "theme_color": "#111827",
+  "background_color": "#11100d",
+  "theme_color": "#11100d",
   "orientation": "portrait",
   "icons": [
     {

@@ -7,3 +7,10 @@ Thumbs.db
 # Backups/exports you may create locally
 *.bak
 *.tmp
+
+# Local Codex/build artifacts
+.agents/
+.codex/
+dist/
+bls_cut_tracker_app/
+*.log

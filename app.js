@@ -5,6 +5,8 @@
   const app = document.getElementById("app");
   const navItems = Array.from(document.querySelectorAll(".navItem"));
   const modal = document.getElementById("modal");
+  const toast = document.getElementById("toast");
+  let toastTimer = null;
 
   let state = loadState();
   let currentView = "today";
@@ -196,6 +198,27 @@
     return String(s ?? "").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
 
+  function showToast(message, tone="good"){
+    if (!toast) return;
+    clearTimeout(toastTimer);
+    toast.textContent = message;
+    toast.className = `toast ${tone}`;
+    toastTimer = setTimeout(() => toast.classList.add("hidden"), 2600);
+  }
+
+  function dailyWorkoutProgress(date, day, week){
+    if (!day.exercises.length) {
+      const done = state.recoveryLogs.some(log => log.date === date && log.type === day.name);
+      return {done: done ? 1 : 0, total: 1, pct: done ? 100 : 0};
+    }
+    const total = day.exercises.reduce((sum, ex) => sum + targetSetsForWeek(ex, week), 0);
+    const done = day.exercises.reduce((sum, ex, index) => {
+      const log = getExerciseLog(date, day.day, index, ex, week);
+      return sum + Math.min(completedSets(log), targetSetsForWeek(ex, week));
+    }, 0);
+    return {done, total, pct: total ? Math.round((done / total) * 100) : 0};
+  }
+
   function setNav(view){
     navItems.forEach(btn => btn.classList.toggle("active", btn.dataset.view === view));
   }
@@ -217,18 +240,25 @@
     const week = scheduled.week;
     const day = dayByNumber(ui.selectedDay);
     const phase = phaseForWeek(week);
+    const progress = dailyWorkoutProgress(ui.todayDate, day, week);
+    const progressLabel = day.exercises.length ? `${progress.done}/${progress.total} sets done` : `${progress.done}/${progress.total} recovery done`;
 
     let html = `
-      <section class="card">
-        <div class="between">
+      <section class="heroCard">
+        <div class="heroTop">
           <div>
             <p class="eyebrow">Today</p>
-            <h2>Week ${week} · Day ${day.day}</h2>
-            <p class="tiny">${escapeHtml(phase.name)} — ${escapeHtml(phase.focus)}</p>
+            <h2 class="heroTitle">Week ${week}, day ${day.day}</h2>
+            <p class="heroSub">${escapeHtml(day.name)}. ${escapeHtml(phase.name)}: ${escapeHtml(phase.focus)}</p>
           </div>
-          <span class="pill ${week===9?'warn':'good'}">${week===9?'Deload':'Training'}</span>
+          <span class="programMark">W${week}</span>
         </div>
-        <div class="grid">
+        <div class="heroMetrics">
+          <div class="metricTile"><strong>${progress.pct}%</strong><span>${progressLabel}</span></div>
+          <div class="metricTile"><strong>${day.exercises.length || "0"}</strong><span>${day.type.toLowerCase()} blocks</span></div>
+          <div class="metricTile"><strong>${Number(state.settings.stepsGoal).toLocaleString()}</strong><span>step target</span></div>
+        </div>
+        <div class="controlsStrip">
           <div><label>Date</label><input id="todayDate" type="date" value="${ui.todayDate}"></div>
           <div><label>Workout Day</label><select id="todayDay">${PLAN.days.map(d=>`<option value="${d.day}" ${d.day===day.day?'selected':''}>Day ${d.day}: ${escapeHtml(d.name)}</option>`).join("")}</select></div>
         </div>
@@ -238,8 +268,9 @@
         <div class="between">
           <div>
             <h2>${escapeHtml(day.name)}</h2>
-            <p class="tiny">${escapeHtml(day.type)} · ${escapeHtml(day.cardio || "")}</p>
+            <p class="sectionLead">${escapeHtml(day.type)}. ${escapeHtml(day.cardio || "")}</p>
           </div>
+          <span class="pill ${week===9?'warn':'good'}">${week===9?'Deload':'Training'}</span>
           <span class="badgeDay">D${day.day}</span>
         </div>
         ${day.day===3 ? `<div class="warnBox"><strong>Knee check:</strong> pain should stay at 0-3/10. Use pain-free depth and swap movements if needed.</div>` : ""}
@@ -268,7 +299,7 @@
             <div class="exerciseTitle">
               <div>
                 <h3>${i+1}. ${escapeHtml(ex.name)}</h3>
-                <div class="target">Target: ${targetSetsForWeek(ex, week)} sets · ${escapeHtml(ex.reps)} reps · RPE ${targetRPEForWeek(ex, week)}</div>
+                <div class="target">Target: ${targetSetsForWeek(ex, week)} sets, ${escapeHtml(ex.reps)} reps, RPE ${targetRPEForWeek(ex, week)}</div>
               </div>
               <span class="pill">${escapeHtml(ex.category)}</span>
             </div>
@@ -282,15 +313,15 @@
                 <div class="checkCell"><input data-field="done" type="checkbox" ${s.done ? "checked" : ""} title="Done"></div>
               </div>
             `).join("")}
-            <div class="grid" style="margin-top:10px">
+            <div class="grid stack">
               <div><label>Knee pain 0-10</label><input data-field="kneePain" type="number" min="0" max="10" step="1" value="${escapeHtml(log.kneePain)}" placeholder="0"></div>
               <div><label>Notes</label><input data-field="notes" type="text" value="${escapeHtml(log.notes)}" placeholder="Form, pain, energy..."></div>
             </div>
-            <div class="statusText">
-              Volume: <strong>${Math.round(volume).toLocaleString()} ${state.settings.weightUnit}</strong>
-              ${e1rm ? ` · Est. 1RM: <strong>${Math.round(e1rm)} ${state.settings.weightUnit}</strong>` : ""}
-              <br>${escapeHtml(progressionAdvice(log, ex, week))}
+            <div class="metricGrid two">
+              <div class="metricTile"><strong>${Math.round(volume).toLocaleString()}</strong><span>volume ${state.settings.weightUnit}</span></div>
+              <div class="metricTile"><strong>${e1rm ? Math.round(e1rm) : "-"}</strong><span>estimated 1RM</span></div>
             </div>
+            <div class="advice">${escapeHtml(progressionAdvice(log, ex, week))}</div>
           </section>
         `;
       });
@@ -316,9 +347,11 @@
     });
     app.querySelectorAll("[data-view-jump]").forEach(btn => btn.addEventListener("click", e => render(e.currentTarget.dataset.viewJump)));
     app.querySelectorAll("[data-mark-recovery]").forEach(btn => btn.addEventListener("click", () => {
+      state.recoveryLogs = state.recoveryLogs.filter(log => !(log.date === ui.todayDate && log.type === day.name));
       state.recoveryLogs.push({date:ui.todayDate, type:day.name, done:true, notes:day.cardio});
       saveState();
-      alert("Recovery day saved.");
+      showToast("Recovery day saved.");
+      renderToday();
     }));
   }
 
@@ -342,16 +375,18 @@
     }
     const knee = Number(log.kneePain);
     if (field === "kneePain" && knee > 3) {
-      e.target.style.borderColor = "rgba(252,165,165,.9)";
+      e.target.style.borderColor = "rgba(239,145,135,.9)";
+    } else if (field === "kneePain") {
+      e.target.style.borderColor = "";
     }
     saveState();
   }
 
   function renderPlan(){
-    const phaseList = PLAN.meta.phases.map(p => `<li><strong>Weeks ${escapeHtml(p.weeks)}:</strong> ${escapeHtml(p.name)} — ${escapeHtml(p.focus)}</li>`).join("");
+    const phaseList = PLAN.meta.phases.map(p => `<li><strong>Weeks ${escapeHtml(p.weeks)}:</strong> ${escapeHtml(p.name)} - ${escapeHtml(p.focus)}</li>`).join("");
     const days = PLAN.days.map(day => `
       <details ${day.day === ui.planDay ? "open" : ""}>
-        <summary>Day ${day.day} — ${escapeHtml(day.name)} <span class="tiny">(${escapeHtml(day.type)})</span></summary>
+        <summary>Day ${day.day} - ${escapeHtml(day.name)} <span class="tiny">(${escapeHtml(day.type)})</span></summary>
         <p class="tiny">${escapeHtml(day.cardio || "")}</p>
         ${day.exercises.length ? `
           <div class="tableWrap">
@@ -394,8 +429,8 @@
         <p class="eyebrow">Body Composition</p>
         <h2>Weight, Waist, Calories, Protein</h2>
         <div class="grid3">
-          <div class="subcard"><div class="metricLabel">Latest Weight</div><div class="bigMetric">${latest?.weight ? latest.weight + " lb" : "—"}</div></div>
-          <div class="subcard"><div class="metricLabel">Change</div><div class="bigMetric">${latest && first ? (lost>0?"+":"") + lost.toFixed(1) + " lb" : "—"}</div></div>
+          <div class="subcard"><div class="metricLabel">Latest Weight</div><div class="bigMetric">${latest?.weight ? latest.weight + " lb" : "-"}</div></div>
+          <div class="subcard"><div class="metricLabel">Change</div><div class="bigMetric">${latest && first ? (lost>0?"+":"") + lost.toFixed(1) + " lb" : "-"}</div></div>
           <div class="subcard"><div class="metricLabel">Protein Goal</div><div class="bigMetric">${state.settings.proteinGoal}g</div></div>
         </div>
       </section>
@@ -409,12 +444,12 @@
           <div><label>Protein grams</label><input id="bodyProtein" type="number" inputmode="numeric" step="1" placeholder="${state.settings.proteinGoal}"></div>
           <div><label>Sleep hours</label><input id="bodySleep" type="number" inputmode="decimal" step="0.1" placeholder="Optional"></div>
         </div>
-        <div style="margin-top:10px"><label>Notes</label><textarea id="bodyNotes" rows="2" placeholder="Hunger, energy, sodium, travel, alcohol, etc."></textarea></div>
-        <button id="saveBody" class="primaryBtn full" style="margin-top:12px" type="button">Save Body Log</button>
+        <div class="stack"><label>Notes</label><textarea id="bodyNotes" rows="2" placeholder="Hunger, energy, sodium, travel, alcohol, etc."></textarea></div>
+        <button id="saveBody" class="primaryBtn full formActions" type="button">Save Body Log</button>
       </section>
       <section class="card">
         <h2>History</h2>
-        ${rows.length ? `<div class="tableWrap"><table><thead><tr><th>Date</th><th>Weight</th><th>Waist</th><th>Calories</th><th>Protein</th><th>Sleep</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r.date}</td><td>${r.weight||""}</td><td>${r.waist||""}</td><td>${r.calories||""}</td><td>${r.protein||""}</td><td>${r.sleep||""}</td></tr>`).join("")}</tbody></table></div>` : `<p class="tiny">No body logs yet.</p>`}
+        ${rows.length ? `<div class="tableWrap"><table><thead><tr><th>Date</th><th>Weight</th><th>Waist</th><th>Calories</th><th>Protein</th><th>Sleep</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r.date}</td><td>${r.weight||""}</td><td>${r.waist||""}</td><td>${r.calories||""}</td><td>${r.protein||""}</td><td>${r.sleep||""}</td></tr>`).join("")}</tbody></table></div>` : `<p class="emptyState">No body logs yet. Add a morning weigh-in to start the trend.</p>`}
       </section>
     `;
     document.getElementById("saveBody").addEventListener("click", () => {
@@ -428,6 +463,7 @@
         notes: document.getElementById("bodyNotes").value
       });
       saveState();
+      showToast("Body log saved.");
       renderBody();
     });
   }
@@ -458,12 +494,12 @@
           <div><label>Steps</label><input id="cardioSteps" type="number" inputmode="numeric" placeholder="${state.settings.stepsGoal}"></div>
           <div><label>Knee Pain 0-10</label><input id="cardioKnee" type="number" min="0" max="10" step="1" placeholder="0"></div>
         </div>
-        <div style="margin-top:10px"><label>Notes</label><textarea id="cardioNotes" rows="2" placeholder="Pace, incline, machine, knee response..."></textarea></div>
-        <button id="saveCardio" class="primaryBtn full" style="margin-top:12px" type="button">Save Cardio Log</button>
+        <div class="stack"><label>Notes</label><textarea id="cardioNotes" rows="2" placeholder="Pace, incline, machine, knee response..."></textarea></div>
+        <button id="saveCardio" class="primaryBtn full formActions" type="button">Save Cardio Log</button>
       </section>
       <section class="card">
         <h2>History</h2>
-        ${rows.length ? `<div class="tableWrap"><table><thead><tr><th>Date</th><th>Type</th><th>Min</th><th>RPE</th><th>Steps</th><th>Knee</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r.date}</td><td>${escapeHtml(r.type)}</td><td>${r.minutes||""}</td><td>${r.rpe||""}</td><td>${r.steps||""}</td><td>${r.kneePain||""}</td></tr>`).join("")}</tbody></table></div>` : `<p class="tiny">No cardio logs yet.</p>`}
+        ${rows.length ? `<div class="tableWrap"><table><thead><tr><th>Date</th><th>Type</th><th>Min</th><th>RPE</th><th>Steps</th><th>Knee</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r.date}</td><td>${escapeHtml(r.type)}</td><td>${r.minutes||""}</td><td>${r.rpe||""}</td><td>${r.steps||""}</td><td>${r.kneePain||""}</td></tr>`).join("")}</tbody></table></div>` : `<p class="emptyState">No cardio logs yet. Record steps or an easy session to build the weekly picture.</p>`}
       </section>
     `;
     document.getElementById("saveCardio").addEventListener("click", () => {
@@ -477,6 +513,7 @@
         notes: document.getElementById("cardioNotes").value
       });
       saveState();
+      showToast("Cardio log saved.");
       renderCardio();
     });
   }
@@ -497,8 +534,8 @@
         <div class="grid">
           <div class="subcard"><div class="metricLabel">Workout Days Logged</div><div class="bigMetric">${sessions}</div></div>
           <div class="subcard"><div class="metricLabel">Total Volume</div><div class="bigMetric">${Math.round(totalVol).toLocaleString()}</div></div>
-          <div class="subcard"><div class="metricLabel">Weight Change</div><div class="bigMetric">${weightChange === null ? "—" : (weightChange>0?"+":"") + weightChange.toFixed(1) + " lb"}</div></div>
-          <div class="subcard"><div class="metricLabel">Best Est. 1RM</div><div class="bigMetric">${topE1RM ? Math.round(topE1RM) + " lb" : "—"}</div></div>
+          <div class="subcard"><div class="metricLabel">Weight Change</div><div class="bigMetric">${weightChange === null ? "-" : (weightChange>0?"+":"") + weightChange.toFixed(1) + " lb"}</div></div>
+          <div class="subcard"><div class="metricLabel">Best Est. 1RM</div><div class="bigMetric">${topE1RM ? Math.round(topE1RM) + " lb" : "-"}</div></div>
         </div>
       </section>
       <section class="card">
@@ -511,7 +548,7 @@
       </section>
       <section class="card">
         <h2>Weekly Summary</h2>
-        ${summaries.length ? `<div class="tableWrap"><table><thead><tr><th>Week</th><th>Sessions</th><th>Sets</th><th>Volume</th><th>Top e1RM</th></tr></thead><tbody>${summaries.map(r=>`<tr><td>${r.week}</td><td>${r.sessions}</td><td>${r.sets}</td><td>${Math.round(r.volume).toLocaleString()}</td><td>${r.e1rm?Math.round(r.e1rm):""}</td></tr>`).join("")}</tbody></table></div>` : `<p class="tiny">No workout logs yet.</p>`}
+        ${summaries.length ? `<div class="tableWrap"><table><thead><tr><th>Week</th><th>Sessions</th><th>Sets</th><th>Volume</th><th>Top e1RM</th></tr></thead><tbody>${summaries.map(r=>`<tr><td>${r.week}</td><td>${r.sessions}</td><td>${r.sets}</td><td>${Math.round(r.volume).toLocaleString()}</td><td>${r.e1rm?Math.round(r.e1rm):""}</td></tr>`).join("")}</tbody></table></div>` : `<p class="emptyState">No workout logs yet. Complete sets on Today to unlock weekly volume and strength trends.</p>`}
       </section>
     `;
     drawLineChart("weightChart", [...state.bodyLogs].sort((a,b)=>a.date.localeCompare(b.date)).map(r=>({x:r.date, y:Number(r.weight)})).filter(p=>isFinite(p.y)), "lb");
@@ -524,16 +561,16 @@
     const ctx = canvas.getContext("2d");
     const w = canvas.width, h = canvas.height;
     ctx.clearRect(0,0,w,h);
-    ctx.fillStyle = "rgba(255,255,255,.03)";
+    ctx.fillStyle = "rgba(255,255,255,.035)";
     ctx.fillRect(0,0,w,h);
-    ctx.strokeStyle = "rgba(255,255,255,.14)";
+    ctx.strokeStyle = "rgba(246,241,232,.14)";
     ctx.lineWidth = 1;
     for(let i=0;i<5;i++){
       const y = 28 + i*(h-56)/4;
       ctx.beginPath(); ctx.moveTo(44,y); ctx.lineTo(w-18,y); ctx.stroke();
     }
-    ctx.fillStyle = "rgba(255,255,255,.72)";
-    ctx.font = "24px -apple-system, BlinkMacSystemFont, sans-serif";
+    ctx.fillStyle = "rgba(246,241,232,.72)";
+    ctx.font = "24px Aptos, Segoe UI, sans-serif";
     if (points.length < 2) {
       ctx.fillText("Add more logs to see a trend", 44, 130);
       return;
@@ -543,7 +580,7 @@
     if (min === max) { min -= 1; max += 1; }
     const xScale = i => 44 + i*(w-72)/(points.length-1);
     const yScale = y => h-34 - (y-min)*(h-72)/(max-min);
-    ctx.strokeStyle = "rgba(125,211,252,.95)";
+    ctx.strokeStyle = "rgba(215,244,99,.95)";
     ctx.lineWidth = 4;
     ctx.beginPath();
     points.forEach((p,i) => {
@@ -551,13 +588,13 @@
       if (i === 0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
     });
     ctx.stroke();
-    ctx.fillStyle = "rgba(167,139,250,.95)";
+    ctx.fillStyle = "rgba(229,167,95,.95)";
     points.forEach((p,i) => {
       const x = xScale(i), y = yScale(p.y);
       ctx.beginPath(); ctx.arc(x,y,5,0,Math.PI*2); ctx.fill();
     });
-    ctx.fillStyle = "rgba(255,255,255,.78)";
-    ctx.font = "18px -apple-system, BlinkMacSystemFont, sans-serif";
+    ctx.fillStyle = "rgba(246,241,232,.78)";
+    ctx.font = "18px Aptos, Segoe UI, sans-serif";
     ctx.fillText(`${max.toFixed(suffix==="lb"?1:0)} ${suffix}`, 44, 24);
     ctx.fillText(`${min.toFixed(suffix==="lb"?1:0)} ${suffix}`, 44, h-10);
   }
@@ -573,7 +610,7 @@
           <div><label>Steps Goal</label><input id="stepsGoal" type="number" value="${state.settings.stepsGoal}"></div>
           <div><label>Protein Goal g/day</label><input id="proteinGoal" type="number" value="${state.settings.proteinGoal}"></div>
         </div>
-        <button id="saveSettings" class="primaryBtn full" style="margin-top:12px" type="button">Save Settings</button>
+        <button id="saveSettings" class="primaryBtn full formActions" type="button">Save Settings</button>
       </section>
       <section class="card">
         <h2>Backup / Export</h2>
@@ -604,19 +641,30 @@
       state.settings.stepsGoal = Number(document.getElementById("stepsGoal").value) || 10000;
       state.settings.proteinGoal = Number(document.getElementById("proteinGoal").value) || 190;
       saveState();
-      alert("Settings saved.");
+      showToast("Settings saved.");
     });
 
     document.getElementById("exportJson").addEventListener("click", () => downloadJson());
     document.getElementById("exportCsv").addEventListener("click", () => downloadWorkoutCsv());
     document.getElementById("importFile").addEventListener("change", importJson);
-    document.getElementById("resetData").addEventListener("click", () => {
-      if (confirm("Reset all local tracker data?")) {
+    document.getElementById("resetData").addEventListener("click", e => {
+      const btn = e.currentTarget;
+      if (btn.dataset.confirming === "true") {
         localStorage.removeItem(STORAGE_KEY);
         state = defaultState();
         saveState();
+        showToast("Local data reset.");
         renderSettings();
+        return;
       }
+      btn.dataset.confirming = "true";
+      btn.textContent = "Tap again to reset data";
+      showToast("Tap reset again to confirm.", "bad");
+      setTimeout(() => {
+        if (!btn.isConnected) return;
+        btn.dataset.confirming = "false";
+        btn.textContent = "Reset Local Data";
+      }, 3200);
     });
   }
 
@@ -630,7 +678,7 @@
 
   function downloadJson(){
     const payload = {exportedAt:new Date().toISOString(), planName:PLAN.meta.name, data:state};
-    download(`bls-cut-tracker-backup-${fmtDate(new Date())}.json`, JSON.stringify(payload, null, 2), "application/json");
+    download(`forgelab-backup-${fmtDate(new Date())}.json`, JSON.stringify(payload, null, 2), "application/json");
   }
 
   function downloadWorkoutCsv(){
@@ -644,7 +692,7 @@
       });
     });
     const csv = rows.map(row => row.map(v => `"${String(v ?? "").replace(/"/g,'""')}"`).join(",")).join("\n");
-    download(`bls-cut-workouts-${fmtDate(new Date())}.csv`, csv, "text/csv");
+    download(`forgelab-workouts-${fmtDate(new Date())}.csv`, csv, "text/csv");
   }
 
   function importJson(e){
@@ -656,10 +704,10 @@
         const imported = JSON.parse(reader.result);
         state = imported.data || imported;
         saveState();
-        alert("Backup imported.");
+        showToast("Backup imported.");
         renderSettings();
       } catch(err) {
-        alert("Could not import that file.");
+        showToast("Could not import that file.", "bad");
       }
     };
     reader.readAsText(file);
