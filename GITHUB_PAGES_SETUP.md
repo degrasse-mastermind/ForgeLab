@@ -13,7 +13,7 @@ This repository can be served as a static GitHub Pages site from the root of `ma
 
 ## Custom domain
 
-Use `mybranford.com` as the custom domain if you host through GitHub Pages. If ForgeLab is hosted through Sites instead, use the DNS records returned by the Sites custom-domain setup.
+Use `forgelab.mybranford.com` as the custom domain if you host through GitHub Pages. If ForgeLab is hosted through Sites instead, use the DNS records returned by the Sites custom-domain setup.
 
 ## Notes
 
