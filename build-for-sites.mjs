@@ -16,6 +16,7 @@ const textAssets = [
 ];
 
 const binaryAssets = [
+  ["assets/forge-lab-logo.png", "image/png"],
   ["icons/icon-192.png", "image/png"],
   ["icons/icon-512.png", "image/png"]
 ];
