@@ -1,14 +1,14 @@
 
-const CACHE_NAME = "forgelab-v4";
+const CACHE_NAME = "forgelab-v5";
 const ASSETS = [
   "./",
   "./index.html",
-  "./styles.css",
-  "./app-data.js",
-  "./app.js",
-  "./manifest.json",
+  "./styles.css?v=5",
+  "./app-data.js?v=5",
+  "./app.js?v=5",
+  "./manifest.json?v=5",
   "./assets/forge-lab-logo.png",
-  "./icons/icon-192.png",
+  "./icons/icon-192.png?v=5",
   "./icons/icon-512.png"
 ];
 
@@ -26,6 +26,18 @@ self.addEventListener("activate", event => {
 
 self.addEventListener("fetch", event => {
   if (event.request.method !== "GET") return;
+
+  if (event.request.mode === "navigate") {
+    event.respondWith(
+      fetch(event.request).then(response => {
+        const copy = response.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put("./index.html", copy));
+        return response;
+      }).catch(() => caches.match("./index.html"))
+    );
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request).then(cached => cached || fetch(event.request).then(response => {
       const copy = response.clone();
