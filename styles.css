@@ -23,6 +23,7 @@
 }
 
 *{ box-sizing:border-box; }
+[hidden]{ display:none !important; }
 
 html{
   min-height:100%;
@@ -110,6 +111,26 @@ summary:focus-visible{
   flex:1 1 auto;
 }
 
+.headerActions{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:8px;
+  flex:0 0 auto;
+}
+
+.accountAvatar{
+  display:grid;
+  place-items:center;
+  width:24px;
+  height:24px;
+  border-radius:8px;
+  color:var(--accentInk);
+  background:var(--accent);
+  font-size:.72rem;
+  font-weight:950;
+}
+
 .brandLogo{
   display:block;
   width:min(260px, 54vw);
@@ -169,6 +190,118 @@ p{ line-height:1.52; }
   padding:16px 14px calc(102px + var(--safeBottom));
   max-width:980px;
   margin:0 auto;
+}
+
+body.authRequired .app{
+  display:grid;
+  min-height:calc(100dvh - 78px);
+  place-items:center;
+  padding-bottom:28px;
+}
+
+.authGate{
+  width:min(100%, 460px);
+  padding:24px;
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  background:linear-gradient(155deg, rgba(43,40,31,.94), rgba(25,24,19,.94));
+  box-shadow:var(--shadow);
+}
+
+.authGate h2{
+  margin-bottom:8px;
+  font-size:1.45rem;
+}
+
+.authBrandMark{
+  display:grid;
+  place-items:center;
+  width:48px;
+  height:48px;
+  margin-bottom:18px;
+  border-radius:14px;
+  color:var(--accentInk);
+  background:var(--accent);
+  box-shadow:0 14px 28px rgba(215,244,99,.18);
+  font-size:1.35rem;
+  font-weight:950;
+  font-style:italic;
+}
+
+.authIntro{
+  margin:0 0 18px;
+  color:var(--soft);
+  font-size:.92rem;
+}
+
+.authModes{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:4px;
+  padding:4px;
+  margin-bottom:16px;
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:rgba(0,0,0,.18);
+}
+
+.authModeBtn{
+  min-height:40px;
+  border:0;
+  border-radius:9px;
+  color:var(--muted);
+  background:transparent;
+  font-weight:850;
+}
+
+.authModeBtn.active{
+  color:var(--text);
+  background:rgba(255,255,255,.09);
+  box-shadow:0 4px 14px rgba(0,0,0,.16);
+}
+
+.authForm{
+  display:grid;
+  gap:12px;
+}
+
+.authMessage{
+  margin:14px 0 0;
+  padding:11px 12px;
+  border:1px solid var(--border);
+  border-radius:12px;
+  color:var(--muted);
+  background:rgba(255,255,255,.04);
+  font-size:.84rem;
+}
+
+.authMessage[data-tone="good"]{
+  color:var(--good);
+  border-color:rgba(155,219,139,.28);
+}
+
+.authMessage[data-tone="bad"]{
+  color:#ffd4cf;
+  border-color:rgba(239,145,135,.32);
+}
+
+.textBtn{
+  display:block;
+  margin:14px auto 0;
+  border:0;
+  padding:8px;
+  color:var(--soft);
+  background:transparent;
+  font-weight:800;
+}
+
+.textBtn:hover{ color:var(--accent); }
+
+.authFinePrint{
+  margin:14px 0 0;
+  color:var(--muted);
+  font-size:.78rem;
+  text-align:center;
 }
 
 .card,
@@ -480,6 +613,12 @@ label{
   transform:translateY(1px) scale(.99);
 }
 
+button:disabled{
+  cursor:wait;
+  opacity:.62;
+  transform:none !important;
+}
+
 .full{ width:100%; }
 
 .bottomNav{
@@ -582,6 +721,41 @@ label{
   line-height:1.45;
   margin-top:12px;
 }
+
+.accountInitial{
+  display:grid;
+  place-items:center;
+  width:44px;
+  height:44px;
+  flex:0 0 auto;
+  border-radius:12px;
+  color:var(--accentInk);
+  background:var(--accent);
+  font-size:1rem;
+  font-weight:950;
+}
+
+.syncStatus{
+  margin:12px 0 0;
+  padding:10px 12px;
+  border:1px solid var(--border);
+  border-radius:12px;
+  color:var(--muted);
+  background:rgba(255,255,255,.035);
+  font-size:.82rem;
+}
+
+.syncStatus[data-tone="good"]{
+  color:var(--good);
+  border-color:rgba(155,219,139,.24);
+}
+
+.syncStatus[data-tone="warn"]{
+  color:var(--warn);
+  border-color:rgba(239,199,102,.25);
+}
+
+.accountActions{ margin-top:12px; }
 
 .advice{
   padding:11px 12px;
@@ -794,7 +968,13 @@ hr{ border:0; border-top:1px solid var(--border); margin:14px 0; }
     justify-content:flex-start;
   }
   .navItem{ font-size:.66rem; }
-  .btnLabel{ display:none; }
+  .btnLabel,
+  .accountLabel{ display:none; }
+  .headerActions .iconBtn{
+    width:44px;
+    padding-inline:8px;
+  }
+  .authGate{ padding:20px; }
 }
 
 @media (prefers-reduced-motion: reduce){

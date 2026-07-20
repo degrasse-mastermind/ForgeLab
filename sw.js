@@ -1,14 +1,17 @@
 
-const CACHE_NAME = "forgelab-v6";
+const CACHE_NAME = "forgelab-v8";
 const ASSETS = [
   "./",
   "./index.html",
-  "./styles.css?v=6",
-  "./app-data.js?v=6",
-  "./app.js?v=6",
-  "./manifest.json?v=6",
+  "./styles.css?v=8",
+  "./app-data.js?v=8",
+  "./supabase-config.js?v=8",
+  "./vendor/supabase.min.js?v=2.110.7",
+  "./supabase-client.js?v=8",
+  "./app.js?v=8",
+  "./manifest.json?v=8",
   "./assets/forge-lab-logo.png",
-  "./icons/icon-192.png?v=6",
+  "./icons/icon-192.png?v=8",
   "./icons/icon-512.png"
 ];
 
@@ -26,6 +29,7 @@ self.addEventListener("activate", event => {
 
 self.addEventListener("fetch", event => {
   if (event.request.method !== "GET") return;
+  if (new URL(event.request.url).origin !== self.location.origin) return;
 
   if (event.request.mode === "navigate") {
     event.respondWith(

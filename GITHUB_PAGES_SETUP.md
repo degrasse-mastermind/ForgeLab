@@ -25,7 +25,8 @@ Do not use `custom-domains.chatgpt.site` or the old Sites validation TXT records
 
 ## Notes
 
-- ForgeLab is static: HTML, CSS, JS, manifest, service worker, and icons.
-- Workout data is stored in the browser's local storage.
-- Use Export before clearing browser data, changing phones, or making major edits.
+- The ForgeLab client is static: HTML, CSS, JS, manifest, service worker, and icons.
+- Authentication and per-user data sync use the connected Supabase project.
+- A user-scoped device cache supports fast saves and brief offline use.
+- Use Export when you want a portable backup outside ForgeLab.
 - The `.nojekyll` file tells GitHub Pages to serve the static files directly.

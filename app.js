@@ -1,14 +1,26 @@
 
-(() => {
+(async () => {
   const PLAN = window.BLS_PLAN;
-  const STORAGE_KEY = "blsCutTracker.v1";
+  const LEGACY_STORAGE_KEY = "blsCutTracker.v1";
+  const CLOUD = window.ForgeLabCloud;
   const app = document.getElementById("app");
   const navItems = Array.from(document.querySelectorAll(".navItem"));
+  const bottomNav = document.querySelector(".bottomNav");
+  const accountBtn = document.getElementById("accountBtn");
+  const accountAvatar = document.getElementById("accountAvatar");
   const modal = document.getElementById("modal");
   const toast = document.getElementById("toast");
   let toastTimer = null;
+  let syncTimer = null;
+  let activeUser = null;
+  let authMode = "signin";
+  let loadedUserId = null;
+  let pendingLegacyImport = false;
+  let syncReady = false;
+  let localDirty = false;
+  let syncStatus = {tone: "muted", label: "Checking sync..."};
 
-  let state = loadState();
+  let state = defaultState();
   let currentView = "today";
   let ui = {
     todayDate: fmtDate(new Date()),
@@ -34,20 +46,99 @@
     };
   }
 
-  function loadState(){
+  function normalizeState(value){
+    const parsed = value && typeof value === "object" ? value : {};
+    const defaults = defaultState();
+    return {
+      ...defaults,
+      ...parsed,
+      settings: {...defaults.settings, ...(parsed.settings || {})},
+      workoutLogs: parsed.workoutLogs && typeof parsed.workoutLogs === "object" ? parsed.workoutLogs : {},
+      bodyLogs: Array.isArray(parsed.bodyLogs) ? parsed.bodyLogs : [],
+      cardioLogs: Array.isArray(parsed.cardioLogs) ? parsed.cardioLogs : [],
+      recoveryLogs: Array.isArray(parsed.recoveryLogs) ? parsed.recoveryLogs : []
+    };
+  }
+
+  function loadLocalState(storageKey){
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return defaultState();
-      const parsed = JSON.parse(raw);
-      return {...defaultState(), ...parsed, settings: {...defaultState().settings, ...(parsed.settings || {})}};
+      const raw = localStorage.getItem(storageKey);
+      return raw ? normalizeState(JSON.parse(raw)) : null;
     } catch (err) {
-      console.warn(err);
-      return defaultState();
+      console.warn("ForgeLab could not read its device cache.", err);
+      return null;
     }
   }
 
+  function dirtyStorageKey(userId){
+    return `${CLOUD.userStorageKey(userId)}:dirty`;
+  }
+
   function saveState(){
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    if (!activeUser || !CLOUD?.available) return;
+    localStorage.setItem(CLOUD.userStorageKey(activeUser.id), JSON.stringify(state));
+    localStorage.setItem(dirtyStorageKey(activeUser.id), "1");
+    localDirty = true;
+    scheduleSync();
+  }
+
+  function setSyncStatus(label, tone="muted"){
+    syncStatus = {label, tone};
+    document.querySelectorAll("[data-sync-status]").forEach(node => {
+      node.textContent = label;
+      node.dataset.tone = tone;
+    });
+  }
+
+  function scheduleSync(){
+    clearTimeout(syncTimer);
+    if (!navigator.onLine) {
+      setSyncStatus("Saved on this device. Waiting for connection.", "warn");
+      return;
+    }
+    setSyncStatus("Saving changes...", "muted");
+    syncTimer = setTimeout(() => {
+      syncState().catch(err => console.warn("ForgeLab sync failed.", err));
+    }, 650);
+  }
+
+  async function syncState({notify=false} = {}){
+    clearTimeout(syncTimer);
+    if (!activeUser || !CLOUD?.available) return false;
+    if (!navigator.onLine) {
+      setSyncStatus("Saved on this device. Waiting for connection.", "warn");
+      if (notify) showToast("Saved on this device. Sync will resume online.", "bad");
+      return false;
+    }
+    setSyncStatus("Syncing with ForgeLab...", "muted");
+    try {
+      if (!syncReady) {
+        const remote = await CLOUD.loadState(activeUser.id);
+        if (!localDirty && remote?.state) {
+          state = normalizeState(remote.state);
+          localStorage.setItem(CLOUD.userStorageKey(activeUser.id), JSON.stringify(state));
+          render(currentView);
+          setSyncStatus("All changes synced.", "good");
+          syncReady = true;
+          return true;
+        }
+        syncReady = true;
+      }
+      await CLOUD.saveState(activeUser.id, state);
+      localDirty = false;
+      localStorage.removeItem(dirtyStorageKey(activeUser.id));
+      if (pendingLegacyImport) {
+        localStorage.removeItem(LEGACY_STORAGE_KEY);
+        pendingLegacyImport = false;
+      }
+      setSyncStatus("All changes synced.", "good");
+      if (notify) showToast("ForgeLab is synced.");
+      return true;
+    } catch (err) {
+      setSyncStatus("Saved on this device. Cloud sync paused.", "warn");
+      if (notify) showToast("Cloud sync is paused. Your device copy is safe.", "bad");
+      throw err;
+    }
   }
 
   function fmtDate(d){
@@ -117,7 +208,6 @@
         sets: Array.from({length:setCount}, () => ({weight:"", reps:"", rpe:"", done:false})),
         notes: ""
       };
-      saveState();
     }
     while (state.workoutLogs[key].sets.length < setCount) {
       state.workoutLogs[key].sets.push({weight:"", reps:"", rpe:"", done:false});
@@ -205,6 +295,213 @@
     toastTimer = setTimeout(() => toast.classList.add("hidden"), 2600);
   }
 
+  function setSignedInUi(user){
+    const signedIn = Boolean(user);
+    document.body.classList.toggle("authRequired", !signedIn);
+    bottomNav.hidden = !signedIn;
+    accountBtn.hidden = !signedIn;
+    if (signedIn) {
+      accountAvatar.textContent = String(user.email || "A").charAt(0).toUpperCase();
+      accountBtn.title = user.email || "Account";
+    }
+  }
+
+  function renderBootScreen(){
+    setSignedInUi(null);
+    app.innerHTML = `
+      <section class="authGate" aria-busy="true">
+        <div class="authBrandMark">F</div>
+        <p class="eyebrow">ForgeLab Account</p>
+        <h2>Opening your training log</h2>
+        <p class="muted">Checking your session and synced data...</p>
+      </section>
+    `;
+  }
+
+  function friendlyAuthError(error){
+    const message = String(error?.message || "");
+    if (/invalid login credentials/i.test(message)) return "Email or password is incorrect.";
+    if (/email not confirmed/i.test(message)) return "Confirm your email before signing in.";
+    if (/user already registered/i.test(message)) return "An account already exists for this email.";
+    if (/password/i.test(message) && /characters/i.test(message)) return message;
+    if (/failed to fetch|network/i.test(message)) return "ForgeLab cannot reach the account service right now.";
+    return message || "ForgeLab could not complete that request.";
+  }
+
+  function setAuthMessage(message, tone="muted"){
+    const node = document.getElementById("authMessage");
+    if (!node) return;
+    node.textContent = message;
+    node.dataset.tone = tone;
+    node.hidden = !message;
+  }
+
+  function renderAuthGate(message=""){
+    setSignedInUi(null);
+    const isReset = authMode === "reset";
+    const isUpdate = authMode === "update";
+    const isCreate = authMode === "create";
+    app.innerHTML = `
+      <section class="authGate">
+        <div class="authBrandMark" aria-hidden="true">F</div>
+        <p class="eyebrow">ForgeLab Account</p>
+        <h2>${isUpdate ? "Choose a new password" : "Your training. Your account."}</h2>
+        <p class="authIntro">${isUpdate
+          ? "Set a new password to finish recovering your ForgeLab account."
+          : "Sign in to keep workouts, body logs, and progress synced across your devices."}</p>
+
+        ${isUpdate ? "" : `
+          <div class="authModes" role="group" aria-label="Account action">
+            <button class="authModeBtn ${!isCreate && !isReset ? "active" : ""}" data-auth-mode="signin" type="button">Sign In</button>
+            <button class="authModeBtn ${isCreate ? "active" : ""}" data-auth-mode="create" type="button">Create Account</button>
+          </div>
+        `}
+
+        <form id="authForm" class="authForm">
+          ${isUpdate ? "" : `
+            <div>
+              <label for="authEmail">Email</label>
+              <input id="authEmail" type="email" autocomplete="email" inputmode="email" required>
+            </div>
+          `}
+          ${isReset ? "" : `
+            <div>
+              <label for="authPassword">${isUpdate ? "New Password" : "Password"}</label>
+              <input id="authPassword" type="password" autocomplete="${isCreate || isUpdate ? "new-password" : "current-password"}" minlength="8" required>
+            </div>
+          `}
+          <button id="authSubmit" class="primaryBtn full" type="submit">
+            ${isReset ? "Send Reset Link" : isUpdate ? "Update Password" : isCreate ? "Create Account" : "Sign In"}
+          </button>
+        </form>
+
+        <p id="authMessage" class="authMessage" data-tone="muted" ${message ? "" : "hidden"}>${escapeHtml(message)}</p>
+
+        ${isReset
+          ? `<button class="textBtn" data-auth-mode="signin" type="button">Back to sign in</button>`
+          : (!isCreate && !isUpdate
+            ? `<button class="textBtn" data-auth-mode="reset" type="button">Forgot password?</button>`
+            : "")}
+
+        ${isCreate ? `<p class="authFinePrint">We will email you a confirmation link before your first sign-in.</p>` : ""}
+      </section>
+    `;
+
+    app.querySelectorAll("[data-auth-mode]").forEach(button => {
+      button.addEventListener("click", () => {
+        authMode = button.dataset.authMode;
+        renderAuthGate();
+      });
+    });
+
+    document.getElementById("authForm").addEventListener("submit", async event => {
+      event.preventDefault();
+      const submit = document.getElementById("authSubmit");
+      const email = document.getElementById("authEmail")?.value.trim();
+      const password = document.getElementById("authPassword")?.value;
+      submit.disabled = true;
+      setAuthMessage("Working...");
+      try {
+        if (authMode === "create") {
+          const data = await CLOUD.signUp(email, password);
+          if (data.session) {
+            await handleSession(data.session, "SIGNED_IN");
+          } else {
+            setAuthMessage("Check your email to confirm your ForgeLab account.", "good");
+          }
+        } else if (authMode === "reset") {
+          await CLOUD.sendPasswordReset(email);
+          setAuthMessage("Check your email for a password reset link.", "good");
+        } else if (authMode === "update") {
+          await CLOUD.updatePassword(password);
+          authMode = "signin";
+          showToast("Password updated.");
+          const session = await CLOUD.getSession();
+          await handleSession(session, "SIGNED_IN");
+        } else {
+          const data = await CLOUD.signIn(email, password);
+          await handleSession(data.session, "SIGNED_IN");
+        }
+      } catch (err) {
+        setAuthMessage(friendlyAuthError(err), "bad");
+      } finally {
+        if (submit.isConnected) submit.disabled = false;
+      }
+    });
+  }
+
+  async function handleSession(session, event="SESSION"){
+    if (event === "PASSWORD_RECOVERY") {
+      activeUser = session?.user || null;
+      authMode = "update";
+      renderAuthGate();
+      return;
+    }
+    if (!session?.user) {
+      activeUser = null;
+      loadedUserId = null;
+      syncReady = false;
+      localDirty = false;
+      clearTimeout(syncTimer);
+      authMode = "signin";
+      renderAuthGate();
+      return;
+    }
+    if (loadedUserId === session.user.id) {
+      activeUser = session.user;
+      setSignedInUi(activeUser);
+      if (authMode === "update") {
+        authMode = "signin";
+        render(currentView);
+      }
+      return;
+    }
+
+    activeUser = session.user;
+    setSignedInUi(activeUser);
+    setSyncStatus("Loading your ForgeLab data...", "muted");
+
+    const userKey = CLOUD.userStorageKey(activeUser.id);
+    const cached = loadLocalState(userKey);
+    const cachedDirty = Boolean(cached && localStorage.getItem(dirtyStorageKey(activeUser.id)));
+    const legacy = cached ? null : loadLocalState(LEGACY_STORAGE_KEY);
+    pendingLegacyImport = Boolean(legacy);
+    localDirty = false;
+
+    try {
+      const remote = await CLOUD.loadState(activeUser.id);
+      syncReady = true;
+      if (cachedDirty) {
+        state = cached;
+        localDirty = true;
+      } else if (remote?.state) {
+        state = normalizeState(remote.state);
+        pendingLegacyImport = false;
+      } else {
+        state = cached || legacy || defaultState();
+        localDirty = true;
+      }
+      localStorage.setItem(userKey, JSON.stringify(state));
+      loadedUserId = activeUser.id;
+      render(currentView);
+      if (remote?.state && !cachedDirty) {
+        setSyncStatus("All changes synced.", "good");
+      } else {
+        await syncState();
+        if (legacy) showToast("Your existing ForgeLab data is now linked to this account.");
+      }
+    } catch (err) {
+      state = cached || legacy || defaultState();
+      syncReady = false;
+      localDirty = cachedDirty;
+      localStorage.setItem(userKey, JSON.stringify(state));
+      loadedUserId = activeUser.id;
+      render(currentView);
+      setSyncStatus("Using the device copy. Cloud sync will retry online.", "warn");
+      console.warn("ForgeLab started from its device cache.", err);
+    }
+  }
+
   function dailyWorkoutProgress(date, day, week){
     if (!day.exercises.length) {
       const done = state.recoveryLogs.some(log => log.date === date && log.type === day.name);
@@ -223,6 +520,10 @@
   }
 
   function render(view=currentView){
+    if (!activeUser) {
+      renderAuthGate();
+      return;
+    }
     currentView = view;
     setNav(view);
     if (view === "today") renderToday();
@@ -598,6 +899,20 @@
 
   function renderSettings(){
     app.innerHTML = `
+      <section class="card accountCard">
+        <div class="between">
+          <div>
+            <p class="eyebrow">Account</p>
+            <h2>${escapeHtml(activeUser.email || "ForgeLab member")}</h2>
+          </div>
+          <span class="accountInitial" aria-hidden="true">${escapeHtml(String(activeUser.email || "A").charAt(0).toUpperCase())}</span>
+        </div>
+        <p class="syncStatus" data-sync-status data-tone="${syncStatus.tone}">${escapeHtml(syncStatus.label)}</p>
+        <div class="grid accountActions">
+          <button id="syncNow" class="primaryBtn" type="button">Sync Now</button>
+          <button id="signOut" class="ghostBtn" type="button">Sign Out</button>
+        </div>
+      </section>
       <section class="card">
         <p class="eyebrow">Settings</p>
         <h2>Program Setup</h2>
@@ -611,7 +926,7 @@
       </section>
       <section class="card">
         <h2>Backup / Export</h2>
-        <p class="tiny">Your data is private to this browser. Export often, especially before clearing Safari data or changing phones.</p>
+        <p class="tiny">Your account syncs through ForgeLab, and an export gives you a portable copy you control.</p>
         <div class="grid">
           <button id="exportJson" class="primaryBtn" type="button">Export JSON Backup</button>
           <button id="exportCsv" class="ghostBtn" type="button">Export Workout CSV</button>
@@ -621,9 +936,9 @@
         <input id="importFile" type="file" accept="application/json">
       </section>
       <section class="card">
-        <h2>Reset</h2>
-        <p class="tiny">This deletes local app data on this device only. Export first if you want a backup.</p>
-        <button id="resetData" class="dangerBtn full" type="button">Reset Local Data</button>
+        <h2>Reset Account Data</h2>
+        <p class="tiny">This clears the training data for this account across synced devices. Export first if you want a backup.</p>
+        <button id="resetData" class="dangerBtn full" type="button">Reset Account Data</button>
       </section>
       <section class="card">
         <h2>Install on iPhone</h2>
@@ -631,6 +946,34 @@
         <p class="tiny">For full offline/PWA behavior, serve the folder from an HTTPS static host. Opening the HTML file directly is okay for testing, but service-worker offline caching requires HTTPS or localhost.</p>
       </section>
     `;
+
+    document.getElementById("syncNow").addEventListener("click", () => {
+      syncState({notify:true}).catch(err => console.warn("Manual sync failed.", err));
+    });
+    document.getElementById("signOut").addEventListener("click", async event => {
+      const button = event.currentTarget;
+      const userKey = CLOUD.userStorageKey(activeUser.id);
+      button.disabled = true;
+      let synced = false;
+      try {
+        synced = await syncState();
+      } catch (err) {
+        console.warn("Signing out with unsynced device data.", err);
+      }
+      try {
+        await CLOUD.signOut();
+        if (synced) {
+          localStorage.removeItem(userKey);
+          localStorage.removeItem(`${userKey}:dirty`);
+        }
+        activeUser = null;
+        loadedUserId = null;
+        renderAuthGate("You are signed out.");
+      } catch (err) {
+        showToast(friendlyAuthError(err), "bad");
+        if (button.isConnected) button.disabled = false;
+      }
+    });
 
     document.getElementById("saveSettings").addEventListener("click", () => {
       state.settings.startDate = document.getElementById("startDate").value;
@@ -644,23 +987,27 @@
     document.getElementById("exportJson").addEventListener("click", () => downloadJson());
     document.getElementById("exportCsv").addEventListener("click", () => downloadWorkoutCsv());
     document.getElementById("importFile").addEventListener("change", importJson);
-    document.getElementById("resetData").addEventListener("click", e => {
+    document.getElementById("resetData").addEventListener("click", async e => {
       const btn = e.currentTarget;
       if (btn.dataset.confirming === "true") {
-        localStorage.removeItem(STORAGE_KEY);
         state = defaultState();
         saveState();
-        showToast("Local data reset.");
+        try {
+          await syncState();
+          showToast("Account data reset.");
+        } catch (err) {
+          showToast("Reset saved on this device. Cloud sync will retry.", "bad");
+        }
         renderSettings();
         return;
       }
       btn.dataset.confirming = "true";
-      btn.textContent = "Tap again to reset data";
+      btn.textContent = "Tap again to reset account";
       showToast("Tap reset again to confirm.", "bad");
       setTimeout(() => {
         if (!btn.isConnected) return;
         btn.dataset.confirming = "false";
-        btn.textContent = "Reset Local Data";
+        btn.textContent = "Reset Account Data";
       }, 3200);
     });
   }
@@ -699,9 +1046,9 @@
     reader.onload = () => {
       try {
         const imported = JSON.parse(reader.result);
-        state = imported.data || imported;
+        state = normalizeState(imported.data || imported);
         saveState();
-        showToast("Backup imported.");
+        showToast("Backup imported and queued for sync.");
         renderSettings();
       } catch(err) {
         showToast("Could not import that file.", "bad");
@@ -711,15 +1058,54 @@
   }
 
   navItems.forEach(btn => btn.addEventListener("click", () => render(btn.dataset.view)));
+  accountBtn.addEventListener("click", () => render("settings"));
   document.getElementById("installHelpBtn").addEventListener("click", () => modal.classList.remove("hidden"));
   document.getElementById("closeModal").addEventListener("click", () => modal.classList.add("hidden"));
   modal.addEventListener("click", e => { if (e.target === modal) modal.classList.add("hidden"); });
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js?v=6").catch(err => console.warn("Service worker unavailable", err));
+      navigator.serviceWorker.register("./sw.js?v=8").catch(err => console.warn("Service worker unavailable", err));
     });
   }
 
-  render("today");
+  renderBootScreen();
+
+  if (!CLOUD?.available) {
+    app.innerHTML = `
+      <section class="authGate">
+        <div class="authBrandMark" aria-hidden="true">F</div>
+        <p class="eyebrow">Connection Required</p>
+        <h2>ForgeLab accounts are temporarily unavailable</h2>
+        <p class="authIntro">${escapeHtml(CLOUD?.reason || "The account service did not load.")}</p>
+        <button class="primaryBtn full" type="button" onclick="location.reload()">Try Again</button>
+      </section>
+    `;
+    return;
+  }
+
+  CLOUD.onAuthStateChange((event, session) => {
+    setTimeout(() => {
+      handleSession(session, event).catch(err => {
+        console.warn("ForgeLab could not apply the account session.", err);
+        renderAuthGate(friendlyAuthError(err));
+      });
+    }, 0);
+  });
+
+  window.addEventListener("online", () => {
+    if (!activeUser) return;
+    syncState().catch(err => console.warn("ForgeLab could not resume sync.", err));
+  });
+  window.addEventListener("offline", () => {
+    if (activeUser) setSyncStatus("Saved on this device. Waiting for connection.", "warn");
+  });
+
+  try {
+    const session = await CLOUD.getSession();
+    await handleSession(session, "BOOT");
+  } catch (err) {
+    console.warn("ForgeLab could not check the account session.", err);
+    renderAuthGate("ForgeLab cannot reach the account service right now.");
+  }
 })();
